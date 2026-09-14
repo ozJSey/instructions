@@ -2,7 +2,9 @@
 
 > Read [`CONVENTIONS.md`](./CONVENTIONS.md) first.
 
-**Status:** Published at v1.0.0 (514 tests across 39 documented runs). The `src/` is mature — modular, tested across two Vue minor versions + SSR. Has its own internal `TASKS.md` / `PROGRESS.md` / `ARCHITECTURE.md` for run-by-run iteration.
+**Status:** **Published on npm as `@ozjsey/v-teleport-to` — 1.1.0 was the only version until the 1.1.1 patch, which is local and unpublished.** (This line used to read "not published"; `npm view @ozjsey/v-teleport-to versions` says otherwise, so check the registry rather than this file.) 854 tests across two Vue minor versions + SSR, plus a browser spec at `playground/scripts/interactions/v-teleport-to.mjs` — jsdom has no layout, so the unit suite alone cannot see this library's central defect class. The `src/` is mature and modular; `ARCHITECTURE.md` names the module map. 1.1.0 closed TT-17/18/19 — the fit test being handed a measurement that did not describe the host's content — by moving the measurement into its own module, `src/measure-host.ts`, and a blind certification (**TT-22**) could not break the directive afterwards. 1.1.1 closed what that certification *did* find: **the composable measured the pre-render DOM** and never self-corrected, plus two attributes that survived dormancy and four wrong README claims. **TT-20** (a reference clipped by a scrolling ancestor, and pinning rather than detaching) is the one open ticket.
+
+A note for whoever writes v2.0: the composable is not going away, and its hard part is **when** the recalc runs, not what it computes. The directive is handed the render step by Vue (`updated`) and writes `el.style` directly, so it can neither measure too early nor feed its own output back into the render. A composable has both problems and needs three triggers plus an equality guard to answer them — see the "When the recalc runs" block in `src/use-teleport-to.ts`. Any v2.0 that keeps a composable inherits that, and any v2.0 that owns the teleport itself must not quietly re-introduce a single sync effect.
 
 ## Why a strategic update is needed (v2.0)
 

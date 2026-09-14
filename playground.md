@@ -4,9 +4,18 @@ Cross-package live demo app. Read [`CONVENTIONS.md`](./CONVENTIONS.md) first.
 
 ## Identity
 
-`playground/` is a private (never published) Vite + Vue 3 app with **one tab per v-\* library** and
-**one card per feature**, where every card's source is the real `.vue` file and can be edited in the
-browser while it runs. 7 libraries, 84 demos as of 2026-09-05. pnpm is the package manager.
+`playground/` is a Vite + Vue 3 app with **one tab per published package** and **one card per
+feature**, where every card's source is the real `.vue` file and can be edited in the browser while
+it runs. 10 libraries, 131 demos as of 2026-09-13. pnpm is the package manager.
+
+It is no longer a private harness: it has its own repository
+(`github.com/ozJSey/npm-portfolio-playground`) and deploys to GitHub Pages at
+<https://ozjsey.github.io/npm-portfolio-playground/>, which every package README links into by
+`#<demo folder name>`. `package.json` stays `"private": true` — that is a Pages deploy, not an npm
+publish. **Not every tab is a directive**: `vue-write-behind` is a composable and
+`bigdecimal-string` is not even Vue, so neither registers anything — `directiveName: null` and no
+`install` in `src/libraries.ts`'s `LIBRARY_SPECS`. Both still appear in `LIBRARY_MODULES`, so a demo
+can import them and get the same module instance the app has.
 
 ## Why this exists
 
@@ -43,9 +52,27 @@ Three problems it fixes, none of which the per-package `playground.html` files s
   option change ever reached a directive on any `v-for` card.
 - **Each package's own install path, enforced.** `installLibraries()` calls the plugin the README
   tells users to call. A build that loads without a usable directive — or without the plugin it is
-  supposed to export — is a **boot failure**, not a fallback. Degrading quietly here is what let a
+  supposed to export — is a **failure**, not a fallback. Degrading quietly here is what let a
   deliberately broken `@ozjsey/v-fit-children` dist render all 97 cards and report `smoke:dist`
   green.
+- **One package's failure stops at that package's tab (PG-22).** `src/libraries.ts` loads each
+  library through its own `import()` inside its own `try`. Before that it was ten static imports at
+  module scope, so a sibling that did not compile blanked **all ten tabs** and `smoke` reported only
+  "No library tabs rendered" — naming nothing, and costing an agent part of a run over a defect in a
+  package they were not touching. The failure is now painted on every tab, stamped on
+  `<html data-playground-library-failures>`, published on `window.__PLAYGROUND_LIBRARY_FAILURES__`,
+  and failed by `smoke`, `interactions` and `geometry` **by name**. This is a change of blast radius,
+  not of loudness: a compiler/runtime mismatch is still fatal for the whole page. `pnpm typecheck:libs`
+  catches the same class in ten seconds without a browser.
+- **The instrument has to say why it failed.** Five harness defects in one month were one defect:
+  the check failed in a way that did not name a cause (PG-14, PG-15, PG-18, PG-21, PG-22). So every
+  script here answers *"when this fails, what does it print"* — `cdp.send` has a deadline and detects
+  a mid-command reload instead of hanging forever; `smoke` and `geometry` count against
+  `src/demos/*/manifest.ts` rather than against whatever the page painted; boot failures print the
+  first page error; ports are taken from the OS rather than from a colliding constant; and
+  `GEOMETRY_SELFTEST=empty-row|over-spill|silent-change` makes `geometry` prove it can go red before
+  its green is worth anything. See `playground/README.md` → "When the harness fails, what does it
+  say?".
 - **Demos are copy-pasteable.** No playground-specific props, helpers or globals are injected into a
   demo. What you read is what you would paste into an app.
 - **One Vue instance and one CodeMirror instance** across the playground, the library sources and
@@ -53,8 +80,9 @@ Three problems it fixes, none of which the per-package `playground.html` files s
   dedupe + a single `optimizeDeps.include` pass for the CodeMirror/Lezer family (a second
   `@codemirror/state` breaks extension `instanceof` checks). The smoke test's `?editors=open` pass
   guards the CodeMirror half permanently.
-- **Green means green.** `pnpm smoke`, `pnpm smoke:dist` and `pnpm typecheck` all pass, or the
-  change is not done.
+- **Green means green.** `pnpm smoke`, `pnpm smoke:dist`, `pnpm docs:check`, `pnpm typecheck` and
+  `pnpm typecheck:libs` all pass, or the change is not done. For a layout-shaped library, `pnpm
+  geometry` as well — and its three self-tests are what make that green mean anything.
 
 ## Definition of "covered"
 
@@ -63,9 +91,56 @@ A library's tab is complete when **every option, every binding form, every emitt
 README's options table and exports table top to bottom; anything not reachable from a card is a gap.
 
 Known deliberate exclusions, all because they do not render:
-`bigdecimal-string` (pure arithmetic), `dependency-grouper` (CLI over the filesystem),
+`dependency-grouper` (a CLI that rewrites `package.json` files on disk),
 `vue-provide-seeker` (VS Code extension), `inhouse-agent` (training harness).
 `v-trap-focus` was cancelled 2026-08-09 (crowded niche) and its tab removed with it.
+
+`bigdecimal-string` was on that list as "pure arithmetic" until 2026-09-13 and should not have been.
+Its completeness rule is the same but the shape is different: **one card per README claim, and each
+card shows the same expression computed twice — plain JavaScript on the left, the library on the
+right, both evaluated in the page.** A printed `0.30000000000000004` would be a claim about
+JavaScript rather than a demonstration of one. Building the tab that way immediately contradicted
+three README sentences; see `PROGRESS.md`, 2026-09-13.
+
+## Two views per tab
+
+Since 2026-09-13 every tab has a **Playground** and a **Documentation** view, switched in the tab
+header. `#<library-id>` is the playground — published READMEs link to that form and
+`tickets/_STANDARDS.md` fixes it, so it must keep meaning what it means — and `#<library-id>/docs`
+is the documentation, which leaves `#<library-id>/<file>.vue` free for the per-card deep link
+`DOCS-1` still owes.
+
+**The documentation view renders `../<package>/README.md` and nothing else.** There is deliberately
+no second copy: this repository has repeated, documented README-vs-source drift, and two hand-kept
+copies of the same API docs would diverge in public. If the docs are wrong, the README is wrong.
+`src/markdown.ts` is a ~150-line renderer against a corpus we own; swap it for a real Markdown
+library the moment that stops being true.
+
+**The documentation view is checked like a card** (`DOCS-3`, `_STANDARDS.md` #6). `pnpm docs:check` boots
+the same server and the same Chrome, renders `#<library-id>/docs` for every package, and:
+
+- compares the code blocks on screen with the blocks in the file — `src/markdown.ts` dropping one is
+  a defect only visible on the rendered page, and it was doing exactly that to fences indented inside
+  a list item;
+- compiles every fenced block that declares a runnable language, **in the page**, through
+  `src/doc-sample.ts` → `src/sfc/compile.ts` — the playground's own compiler, its own aliased
+  packages, a real `window`. Nothing is executed;
+- lints the compiled render function for the two defects DZ-5 shipped — a browser global called from
+  a template expression, and `.value` read off a ref in one;
+- resolves every link, packs the tarball to confirm npm gets *this* README, and reports names
+  documented as API that the source has never heard of.
+
+The fence's **language word is the block's declaration** and there is no second marker: `vue` and
+`ts` must compile, `text` / `bash` / `json` are prose, and an untagged fence is a finding rather than
+a silent skip. `src/markdown.ts` only matches a bare language word, so any suffix syntax would stop
+the block rendering as code on the page the gate exists to protect.
+
+`scripts/docs/negative-control.mjs` runs 17 known-broken samples through the same paths before any
+package is checked and aborts the run if one of them passes. A green `pnpm docs:check` has therefore just
+demonstrated it can go red.
+
+The remaining `DOCS-1` work is untouched: the Pages base path, the service worker the six
+upload-dependent `v-dropzone` cards need on a static host, and the per-card deep link.
 
 ## Cross-library cards
 
@@ -123,7 +198,7 @@ carry a `ref` in `<script setup>`.
       document selection.
       Still to write: `v-observe`, `v-copy`, `v-scroll-into-view`, `v-teleport-to`,
       `v-fit-children`.
-- [x] **`v-fit-children`: ship a `FitChildrenPlugin` + `DIRECTIVE_NAME`** — done 2026-08-09
+- [x] ~~**`v-fit-children`: ship a `FitChildrenPlugin` + `DIRECTIVE_NAME`**~~ — **never shipped, and deliberately so.** Marked done 2026-08-09 and repeated in `CLAUDE.md` and the package brief, but neither export has existed in any version of the package. `src/directive.ts` documents the decision: registering a directive is the application's job. Do not "restore" them.
       (v2.2.0, additive): the `INSTALLS` special case is gone, `installLibraries()` treats it like
       every tier-1 sibling.
 - [ ] **Link each card to its README section** — acceptance: `DemoMeta` grows an optional `docs`
