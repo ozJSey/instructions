@@ -132,7 +132,7 @@ consistency across the portfolio beats holding an unscoped name per package.
     "prepublishOnly": "npm run build"
   },
   "keywords": ["vue", "vue3", "directive", "<verb>", "<domain>", "<search-term>", "<search-term>"],
-  "peerDependencies": { "vue": "^3.0.0" },
+  "peerDependencies": { "vue": "^3.2.0" },
   "devDependencies": {
     "jsdom": "^25.0.0",
     "tsup": "^8.5.1",
@@ -182,7 +182,13 @@ Each package on first publish must have:
 - ✅ `.gitignore` excluding `node_modules`, `dist` (rebuilt on publish), playground browser cache
 - ✅ `LICENSE` (MIT)
 - ✅ `package.json` `files: ["dist"]` whitelist (verified via `npm pack --dry-run`)
-- ✅ `peerDependencies: { vue: "^3.0.0" }` (no Vue version pinning beyond major)
+- ✅ `peerDependencies.vue` set to the **measured** floor, never a habit. Read every `from 'vue'`
+  import and take the highest version that introduced one: `getCurrentScope`/`onScopeDispose`/
+  `effectScope` are **3.2.0**, `toValue`/`MaybeRefOrGetter` are **3.3.0**. `^3.0.0` is the wrong
+  default — it was declared on four packages that could never run on 3.0 or 3.1 (PEER-1, 2026-09-17),
+  so a consumer installed cleanly and then the import threw. If a test matrix claims to prove the
+  range, its lowest rung must BE the floor and must be pinned exactly — a caret there resolves to
+  latest and the gate proves nothing.
 - ✅ Types exported by name from the entry
 - ✅ A tab in `playground/` covering the full documented surface
 
