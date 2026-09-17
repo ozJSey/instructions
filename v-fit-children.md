@@ -3,9 +3,16 @@
 > Read `CONVENTIONS.md` first — it owns the cross-cutting rules (TypeScript-first, simple stupid
 > code, playground coverage). This brief owns only what is specific to this package.
 
-**Status:** Published — **2.2.0 on npm** (owner `ozjsey`, scoped as `@ozjsey/v-fit-children`;
-the registry's `latest` is 2.2.0 and it is the only version under the scope). **2.3.0 is built
-locally and not published.** Default posture remains **conservative**: it is one of only three names
+**FEATURE FREEZE (owner, 2026-09-16): nothing new ships on this package.** No `lines`, no
+badge attribute, no priority ranking, no `expanded` — the ideation fleet's four proposals are
+all declined. Maintenance only: correctness fixes (FIT-2's P0), and truth fixes to the shipped
+CHANGELOG/README (DOC-1). Do not re-propose features here; this line is the answer.
+
+**Status:** Published — **2.3.0 on npm** (owner `ozjsey`, scoped as `@ozjsey/v-fit-children`;
+the registry holds 2.2.0 and 2.3.0, `dist-tags.latest = 2.3.0`, published 2026-09-14T10:01:48Z —
+verified 2026-09-17). **2.3.1 is built locally and not published.** This line previously said
+"2.2.0 on npm … 2.3.0 is built locally and not published", months after 2.3.0 went up; the shipped
+2.3.0 tarball said the same thing about itself. Default posture remains **conservative**: it is one of only three names
 owned on npm, and the next publish needs explicit user sanction. The package has its own nested git
 repo with real history and its own `ARCHITECTURE.md` (the `src/` split is a deliberate
 anti-copy-paste measure requested by the owner — keep it).
@@ -94,7 +101,7 @@ the card — and it can be pointed at the **published** artifact for a negative 
 ```bash
 cd playground
 pnpm interactions
-PLAYGROUND_UNALIAS=v-fit-children pnpm interactions   # the same checks against npm's 2.2.0
+PLAYGROUND_UNALIAS=v-fit-children pnpm interactions   # the same checks against npm's latest (2.3.0)
 ```
 
 ## What 2.3.0 fixed, and why none of it was a layout bug
